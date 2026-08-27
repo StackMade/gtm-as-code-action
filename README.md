@@ -7,7 +7,7 @@ workflow.
 ## Status
 
 Usable, and as young as the CLI it runs. `@stackmade/gtm-as-code` is published, and this action
-pins `0.1.0` by default. The major tag is `v0` on purpose: the CLI is pre-1.0, so its output and
+pins `0.1.1` by default. The major tag is `v0` on purpose: the CLI is pre-1.0, so its output and
 flags may still change, and the action's version line should say so rather than imply a stability
 the tool underneath has not earned.
 
@@ -63,7 +63,7 @@ Identity Federation, or a secret consumed by an auth action that knows how to ma
 | Input | Default | Description |
 |---|---|---|
 | `command` | `plan` | `validate`, `plan`, or `apply`. Anything else fails the step. |
-| `version` | `0.1.0` | Exact version of the `@stackmade/gtm-as-code` npm package to run. A range or a dist-tag such as `latest` is rejected. See below. |
+| `version` | `0.1.1` | Exact version of the `@stackmade/gtm-as-code` npm package to run. A range or a dist-tag such as `latest` is rejected. See below. |
 | `config` | *(empty)* | Path to the config file, relative to `working-directory`. Empty lets the CLI discover `analytics.yaml` or `analytics/analytics.yaml`. |
 | `working-directory` | `.` | Directory to run in. For monorepos. |
 | `node-version` | `22` | Node.js to set up first. The CLI needs 22 or newer. Empty skips setup and uses the job's existing Node. |
