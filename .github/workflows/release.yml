@@ -1,0 +1,36 @@
+name: Release
+
+# Consumers write `uses: <owner>/gtm-as-code-action@v1` and expect that tag to follow the latest
+# v1.x.y release. Git has no such thing as a moving tag, so we move it ourselves on every release.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Move the major version tag to this release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          major="${RELEASE_TAG%%.*}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git tag --force --annotate "$major" --message "Release $RELEASE_TAG" "$RELEASE_TAG"
+          git push --force origin "refs/tags/${major}"
+
+          echo "Moved ${major} to ${RELEASE_TAG}" >> "$GITHUB_STEP_SUMMARY"

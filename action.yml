@@ -1,0 +1,61 @@
+name: 'GTM as Code'
+description: 'Validate, plan, and apply Google Tag Manager and GA4 configuration declared in YAML.'
+author: 'Krzysztof Słomka'
+
+branding:
+  icon: 'tag'
+  color: 'blue'
+
+inputs:
+  command:
+    description: 'Which gtm-code command to run: validate, plan, or apply.'
+    required: false
+    default: 'plan'
+  version:
+    description: >-
+      Version of the @stackmade/gtm-as-code npm package to run. Pinned by default so that a given
+      tag of this action always runs the same CLI. Override only if you know why.
+    required: false
+    default: '0.1.0'
+  config:
+    description: >-
+      Path to the config file, relative to working-directory. Leave empty to let the CLI discover
+      analytics.yaml or analytics/analytics.yaml itself.
+    required: false
+    default: ''
+  working-directory:
+    description: 'Directory to run in. Useful in a monorepo where the config lives in a subproject.'
+    required: false
+    default: '.'
+  node-version:
+    description: >-
+      Node.js version to set up before running. The CLI needs Node 22 or newer, so anything lower
+      fails at install. Set to an empty string to skip setup entirely and use whatever Node the
+      job already has.
+    required: false
+    default: '22'
+  auto-approve:
+    description: >-
+      Skip apply's interactive confirmation. Ignored by validate and plan. Defaults to false on
+      purpose — an apply that auto-approves by default is a footgun in CI.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      if: inputs.node-version != ''
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Run gtm-code
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_AUTO_APPROVE: ${{ inputs.auto-approve }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"
