@@ -1,0 +1,40 @@
+name: Bump pinned CLI version
+
+on:
+  repository_dispatch:
+    types: [cli-released]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Update pinned version
+        env:
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+          sed -i "s/default: '[0-9]*\.[0-9]*\.[0-9]*'/default: '${NEW_VERSION}'/" action.yml
+
+      - name: Commit and tag
+        env:
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo "action.yml already pins ${NEW_VERSION}, nothing to do."
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git commit -am "Pin the CLI at ${NEW_VERSION}"
+          git tag --annotate "v${NEW_VERSION}" --message "Release v${NEW_VERSION}"
+          git push origin HEAD:main
+          git push origin "refs/tags/v${NEW_VERSION}"
