@@ -16,7 +16,7 @@ inputs:
       Version of the @stackmade/gtm-as-code npm package to run. Pinned by default so that a given
       tag of this action always runs the same CLI. Override only if you know why.
     required: false
-    default: '0.1.1'
+    default: '0.3.0'
   config:
     description: >-
       Path to the config file, relative to working-directory. Leave empty to let the CLI discover
