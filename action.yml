@@ -23,6 +23,13 @@ inputs:
       analytics.yaml or analytics/analytics.yaml itself.
     required: false
     default: ''
+  environment:
+    description: >-
+      Which entry of the config's environments: block to run against, passed as --env. Required by
+      the CLI from 0.9.0 onwards whenever the config declares environments, and rejected by it when
+      the config does not, so leave it empty for a single-container config.
+    required: false
+    default: ''
   working-directory:
     description: 'Directory to run in. Useful in a monorepo where the config lives in a subproject.'
     required: false
@@ -38,6 +45,13 @@ inputs:
     description: >-
       Skip apply's interactive confirmation. Ignored by validate and plan. Defaults to false on
       purpose — an apply that auto-approves by default is a footgun in CI.
+    required: false
+    default: 'false'
+  allow-destroy:
+    description: >-
+      Authorize apply to carry out deletions. Separate from auto-approve, which only skips the
+      prompt: an apply whose plan contains a delete refuses to run without this. Ignored by
+      validate and plan, and false by default.
     required: false
     default: 'false'
 
@@ -57,5 +71,7 @@ runs:
         INPUT_COMMAND: ${{ inputs.command }}
         INPUT_VERSION: ${{ inputs.version }}
         INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
         INPUT_AUTO_APPROVE: ${{ inputs.auto-approve }}
+        INPUT_ALLOW_DESTROY: ${{ inputs.allow-destroy }}
       run: bash "${GITHUB_ACTION_PATH}/run.sh"

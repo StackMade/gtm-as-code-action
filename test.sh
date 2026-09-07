@@ -19,7 +19,7 @@ chmod +x "${stub_dir}/npx"
 
 failures=0
 
-# run <expected> <command> <version> <config> <auto-approve>
+# run <expected> <name> <command> <version> <config> <auto-approve> [environment] [allow-destroy]
 run() {
   local expected="$1" name="$2"
   shift 2
@@ -28,6 +28,7 @@ run() {
   actual="$(
     PATH="${stub_dir}:${PATH}" \
       INPUT_COMMAND="$1" INPUT_VERSION="$2" INPUT_CONFIG="$3" INPUT_AUTO_APPROVE="$4" \
+      INPUT_ENVIRONMENT="${5:-}" INPUT_ALLOW_DESTROY="${6:-false}" \
       bash "${here}/run.sh" 2>&1
   )" || status=$?
 
@@ -82,6 +83,32 @@ run "::error::version must be an exact version like 0.1.0, not 'latest'." \
 run "::error::version must be an exact version like 0.1.0, not '^0.1.0'." \
   'a range version is rejected' \
   plan '^0.1.0' '' false
+
+run '--yes @stackmade/gtm-as-code@0.9.0 plan --env production' \
+  'environment is passed through as --env' \
+  plan 0.9.0 '' false production
+
+run '--yes @stackmade/gtm-as-code@0.9.0 plan --config analytics/analytics.yaml --env staging' \
+  'config and environment are both passed through' \
+  plan 0.9.0 analytics/analytics.yaml false staging
+
+# Unlike auto-approve, --env is not an apply-only flag: every command reads the config.
+run '--yes @stackmade/gtm-as-code@0.9.0 validate --env staging' \
+  'validate takes an environment too' \
+  validate 0.9.0 '' false staging
+
+run '--yes @stackmade/gtm-as-code@0.9.0 apply --auto-approve --allow-destroy' \
+  'apply forwards allow-destroy alongside auto-approve' \
+  apply 0.9.0 '' true '' true
+
+# The two gates are independent: authorizing deletion does not also skip the prompt.
+run '--yes @stackmade/gtm-as-code@0.9.0 apply --allow-destroy' \
+  'allow-destroy does not imply auto-approve' \
+  apply 0.9.0 '' false '' true
+
+run '--yes @stackmade/gtm-as-code@0.9.0 plan' \
+  'allow-destroy is ignored by plan' \
+  plan 0.9.0 '' false '' true
 
 if [ "${failures}" -ne 0 ]; then
   echo "${failures} failing"

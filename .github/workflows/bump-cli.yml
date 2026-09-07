@@ -11,7 +11,11 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
+      # Tags and full history, because the major-tag move below has to resolve the release tag,
+      # which on a re-dispatch of an already-pinned version was created by an earlier run.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Update pinned version
         env:
@@ -26,15 +30,27 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git diff --quiet; then
-            echo "action.yml already pins ${NEW_VERSION}, nothing to do."
-            exit 0
-          fi
-
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-          git commit -am "Pin the CLI at ${NEW_VERSION}"
-          git tag --annotate "v${NEW_VERSION}" --message "Release v${NEW_VERSION}"
-          git push origin HEAD:main
-          git push origin "refs/tags/v${NEW_VERSION}"
+          # A re-dispatch of a version already pinned skips the commit and the release tag, but
+          # still moves the major tag below, so dispatching again is how a stale major tag gets
+          # repaired without anyone pushing a tag by hand.
+          if git diff --quiet; then
+            echo "action.yml already pins ${NEW_VERSION}; re-checking the major tag only."
+          else
+            git commit -am "Pin the CLI at ${NEW_VERSION}"
+            git tag --annotate "v${NEW_VERSION}" --message "Release v${NEW_VERSION}"
+            git push origin HEAD:main
+            git push origin "refs/tags/v${NEW_VERSION}"
+          fi
+
+          # The major tag moves here rather than in release.yml, which triggers on the tag push
+          # above. GitHub does not run workflows for events created with the default GITHUB_TOKEN,
+          # so that trigger never fires: v0 sat on v0.1.1 through eight releases before anyone
+          # noticed. release.yml is kept for a tag pushed by a human, which does trigger it.
+          major="v${NEW_VERSION%%.*}"
+          git tag --force --annotate "$major" --message "Release v${NEW_VERSION}" "v${NEW_VERSION}"
+          git push --force origin "refs/tags/${major}"
+
+          echo "Pinned ${NEW_VERSION} and moved ${major} to v${NEW_VERSION}" >> "$GITHUB_STEP_SUMMARY"

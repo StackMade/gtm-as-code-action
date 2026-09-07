@@ -6,18 +6,16 @@ workflow.
 
 ## Status
 
-Usable, and as young as the CLI it runs. `@stackmade/gtm-as-code` is published, and this action
-pins `0.1.1` by default. The major tag is `v0` on purpose: the CLI is pre-1.0, so its output and
-flags may still change, and the action's version line should say so rather than imply a stability
-the tool underneath has not earned.
+Usable, and as young as the CLI it runs. This action pins `@stackmade/gtm-as-code` at `0.9.0`. The
+major tag is `v0` on purpose: the CLI is pre-1.0, so its output and flags may still change, and the
+action's version line should say so rather than imply a stability the tool underneath has not
+earned.
 
-Two limits of the CLI apply to any run of this action. GA4 ownership lives in a local, gitignored
-state file, so `apply` on a fresh runner tries to re-create GA4 resources that already exist; GTM
-is unaffected, because its ownership marker lives in the container. And there is no workspace
-conflict detection yet, so an `apply` can overwrite edits someone made in the GTM UI. Both are
-being addressed in the CLI's 0.2, and both are described in the
-[CLI's README](https://github.com/StackMade/gtm-as-code#cicd). Running `plan` in CI is safe today.
-Keep `apply` to GTM, or to a local machine, until 0.2 lands.
+`apply` is safe to run in CI. The two limits that once made it local-only are gone: GA4 ownership
+now lives in a committed `.analytics/state.json`, so a fresh runner knows what it already manages
+rather than re-creating it, and `apply` refuses to proceed when the GTM workspace carries changes it
+cannot safely merge. Both landed in the CLI's 0.2. Commit `.analytics/state.json`, or GA4 ownership
+is lost between runs.
 
 ## Usage
 
@@ -45,7 +43,9 @@ jobs:
           GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
 ```
 
-Applying on merge is the same step with `command: apply` and `auto-approve: true`.
+Applying on merge is the same step with `command: apply` and `auto-approve: true`. Add
+`allow-destroy: true` if the plan may contain deletions, and `environment: production` if the config
+declares an `environments:` block.
 
 ## Authentication is the caller's job
 
@@ -63,18 +63,22 @@ Identity Federation, or a secret consumed by an auth action that knows how to ma
 | Input | Default | Description |
 |---|---|---|
 | `command` | `plan` | `validate`, `plan`, or `apply`. Anything else fails the step. |
-| `version` | `0.1.1` | Exact version of the `@stackmade/gtm-as-code` npm package to run. A range or a dist-tag such as `latest` is rejected. See below. |
+| `version` | `0.9.0` | Exact version of the `@stackmade/gtm-as-code` npm package to run. A range or a dist-tag such as `latest` is rejected. See below. |
 | `config` | *(empty)* | Path to the config file, relative to `working-directory`. Empty lets the CLI discover `analytics.yaml` or `analytics/analytics.yaml`. |
+| `environment` | *(empty)* | Passed as `--env`. Required by the CLI from 0.9.0 whenever the config declares an `environments:` block, and rejected when it does not. |
 | `working-directory` | `.` | Directory to run in. For monorepos. |
 | `node-version` | `22` | Node.js to set up first. The CLI needs 22 or newer. Empty skips setup and uses the job's existing Node. |
 | `auto-approve` | `false` | Skips `apply`'s confirmation prompt. Ignored by `validate` and `plan`. |
+| `allow-destroy` | `false` | Authorizes `apply` to carry out deletions. Ignored by `validate` and `plan`. |
 
-`auto-approve` defaults to `false` on purpose. An apply step that auto-approves unless told
-otherwise is a footgun in precisely the environment it runs in.
+`auto-approve` and `allow-destroy` are separate gates and both default to `false` on purpose. The
+first skips the prompt, the second authorizes the kind of change; an `apply` whose plan contains a
+delete needs both. An apply step that assumed either unless told otherwise is a footgun in precisely
+the environment it runs in.
 
 There are no outputs yet. `has-changes`, the create/update/delete counts, and a rendered plan for
-posting as a PR comment all need the CLI's `--format json` and `--format markdown`, which arrive in
-its 0.2 milestone.
+posting as a PR comment all need the CLI's `--format json` and `--format markdown`, which have
+shipped; wiring them up here is this repository's remaining work.
 
 ## Why the version is pinned
 
@@ -104,9 +108,18 @@ action against a fixture config and asserts on `validate`. That is the obvious n
 
 ## Releasing
 
-Tag `vX.Y.Z`. `.github/workflows/release.yml` then force-moves the `vX` tag onto it, which is the
-convention consumers expect. Bump the pinned `version` default in `action.yml` in the same commit
-whenever the CLI has published a new release.
+Releases happen on their own. Publishing the CLI to npm fires a `repository_dispatch` at this
+repository, and `.github/workflows/bump-cli.yml` rewrites the pinned `version` default in
+`action.yml`, commits it, tags `vX.Y.Z`, and force-moves the `vX` tag onto that tag.
+
+The major tag is moved by that same workflow rather than by `.github/workflows/release.yml`, which
+also knows how, because GitHub does not run workflows for events created with the default
+`GITHUB_TOKEN`. A tag pushed by the bump workflow therefore never triggered `release.yml`, and `v0`
+stayed on `v0.1.1` through eight releases before anyone checked. `release.yml` is kept for a tag
+pushed by a human, which does trigger it.
+
+Re-dispatching a version that is already pinned commits nothing but still re-checks the major tag,
+so that is how a `vX` tag that has drifted gets repaired.
 
 ## About
 
